@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>房貸計算器 - Mortgage Calculator</title>
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#F7F3ED">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="房貸計算器">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cream: {
+                            bg: '#F7F3ED',
+                            card: '#FFFCF8',
+                            text: '#493D35',
+                            muted: '#8A7B70',
+                            primary: '#A68A72',
+                            secondary: '#C7AE96',
+                            border: '#E8DED2',
+                            chart1: '#D8BDA5',
+                            chart2: '#E8DCCB'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['DM Sans', 'Noto Sans TC', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Optional Google Fonts with Offline Safe Fallback -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom scrollbar & iPhone specific touch styles */
+        body {
+            background-color: #F7F3ED;
+            color: #493D35;
+            font-family: "DM Sans", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Custom styling for range inputs */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #E8DED2;
+            border-radius: 8px;
+            height: 6px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 22px;
+            width: 22px;
+            border-radius: 50%;
+            background: #A68A72;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(73, 61, 53, 0.15);
+            border: 2px solid #FFFCF8;
+        }
+
+        /* Prevent zooming on iOS input focus by maintaining minimum 16px font */
+        input, select {
+            font-size: 16px !important;
+        }
+
+        /* Custom scrollbars for details table */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #F7F3ED;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #C7AE96;
+            border-radius: 3px;
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 15px rgba(73, 61, 53, 0.03), 0 1px 3px rgba(73, 61, 53, 0.02);
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12 antialiased selection:bg-cream-secondary selection:text-white">
+
+    <!-- Header / Navbar -->
+    <header class="max-w-4xl mx-auto px-4 pt-6 pb-4 text-center">
+        <div class="inline-block px-3 py-1 bg-cream-border/40 rounded-full text-xs font-medium text-cream-muted tracking-wider uppercase mb-1">
+            Mortgage Calculator
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-cream-text tracking-tight">房貸計算器</h1>
+        <p class="text-xs sm:text-sm text-cream-muted mt-1">清楚掌握每月負擔、利息成本與還款規劃</p>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 space-y-6">
+
+        <!-- 1. 房貸條件設定 -->
+        <section class="bg-cream-card rounded-2xl p-5 sm:p-6 card-shadow border border-cream-border">
+            <h2 class="text-lg font-bold text-cream-text mb-4 pb-2 border-b border-cream-border flex justify-between items-center">
+                <span>房貸條件設定</span>
+                <button id="btnReset" class="text-xs font-normal text-cream-muted hover:text-cream-primary underline transition-colors">
+                    恢復預設值
+                </button>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- 房屋總價 -->
+                <div class="space-y-1.5">
+                    <label for="totalPrice" class="block text-xs font-medium text-cream-muted">房屋總價 (NT$)</label>
+                    <div class="relative rounded-xl border border-cream-border bg-white focus-within:border-cream-primary transition-all">
+                        <input type="text" id="totalPrice" inputmode="numeric" class="w-full py-2.5 px-3 rounded-xl bg-transparent outline-none text-cream-text font-bold" value="7,500,000">
+                    </div>
+                </div>
+
+                <!-- 自備款比例與金額 -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <label for="downPaymentRatio" class="font-medium text-cream-muted">自備款比例 (%)</label>
+                        <span class="text-cream-text font-semibold"><span id="downPaymentAmountDisplay">NT$ 2,250,000</span> (<span id="loanAmountDisplay">貸款 NT$ 5,250,000</span>)</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="downPaymentSlider" min="0" max="100" step="1" value="30" class="w-full">
+                        <div class="w-20 shrink-0 relative rounded-xl border border-cream-border bg-white focus-within:border-cream-primary transition-all">
+                            <input type="number" id="downPaymentRatio" min="0" max="100" step="1" class="w-full py-2 px-2 text-center rounded-xl bg-transparent outline-none text-cream-text font-medium" value="30">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 年利率 -->
+                <div class="space-y-1.5">
+                    <label for="interestRate" class="block text-xs font-medium text-cream-muted">年利率 (%)</label>
+                    <div class="relative rounded-xl border border-cream-border bg-white focus-within:border-cream-primary transition-all">
+                        <input type="number" id="interestRate" step="0.001" min="0" max="20" inputmode="decimal" class="w-full py-2.5 px-3 rounded-xl bg-transparent outline-none text-cream-text font-bold" value="2.5">
+                    </div>
+                </div>
+
+                <!-- 貸款年限 -->
+                <div class="space-y-1.5">
+                    <label for="loanTermYears" class="block text-xs font-medium text-cream-muted">貸款年限</label>
+                    <div class="relative rounded-xl border border-cream-border bg-white focus-within:border-cream-primary transition-all">
+                        <select id="loanTermYears" class="w-full py-2.5 px-3 rounded-xl bg-transparent outline-none text-cream-text font-medium appearance-none cursor-pointer">
+                            <option value="5">5 年 (60期)</option>
+                            <option value="10">10 年 (120期)</option>
+                            <option value="15">15 年 (180期)</option>
+                            <option value="20">20 年 (240期)</option>
+                            <option value="25">25 年 (300期)</option>
+                            <option value="30" selected>30 年 (360期)</option>
+                            <option value="35">35 年 (420期)</option>
+                            <option value="40">40 年 (480期)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 寬限期 -->
+                <div class="space-y-1.5">
+                    <label for="gracePeriodYears" class="block text-xs font-medium text-cream-muted">寬限期 (只繳利息)</label>
+                    <div class="relative rounded-xl border border-cream-border bg-white focus-within:border-cream-primary transition-all">
+                        <select id="gracePeriodYears" class="w-full py-2.5 px-3 rounded-xl bg-transparent outline-none text-cream-text font-medium appearance-none cursor-pointer">
+                            <option value="0" selected>無寬限期</option>
+                            <option value="1">1 年</option>
+                            <option value="2">2 年</option>
+                            <option value="3">3 年</option>
+                            <option value="4">4 年</option>
+                            <option value="5">5 年</option>
+                        </select>
+                    </div>
+                    <p class="text-[11px] text-cream-muted">寬限期可以降低前期月付金，但不代表免除利息。</p>
+                </div>
+
+                <!-- 還款方式 -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-medium text-cream-muted">還款方式</label>
+                    <div class="grid grid-cols-2 gap-2 p-1 bg-cream-bg rounded-xl border border-cream-border">
+                        <button type="button" id="typeEqualPayment" class="py-2 px-2 text-xs font-medium rounded-lg transition-all bg-cream-primary text-white shadow-sm">
+                            本息平均攤還
+                        </button>
+                        <button type="button" id="typeEqualPrincipal" class="py-2 px-2 text-xs font-medium rounded-lg transition-all text-cream-muted hover:text-cream-text">
+                            本金平均攤還
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 主要試算結果摘要 -->
+        <section class="bg-cream-card rounded-2xl p-5 sm:p-6 card-shadow border border-cream-border">
+            <h2 class="text-lg font-bold text-cream-text mb-4 pb-2 border-b border-cream-border">試算結果摘要</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                
+                <!-- 結果數字清單 -->
+                <div class="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div class="p-3 rounded-xl bg-cream-bg/60 border border-cream-border/60">
+                        <span class="block text-[11px] text-cream-muted">貸款總本金</span>
+                        <span id="resLoanPrincipal" class="text-base sm:text-lg font-bold text-cream-text">NT$ 5,250,000</span>
+                    </div>
+
+                    <div id="boxGracePayment" class="p-3 rounded-xl bg-cream-bg/60 border border-cream-border/60 hidden">
+                        <span class="block text-[11px] text-cream-muted">寬限期月付金</span>
+                        <span id="resGracePayment" class="text-base sm:text-lg font-bold text-cream-primary">NT$ 10,938</span>
+                    </div>
+
+                    <div id="boxMainPayment" class="p-3 rounded-xl bg-cream-bg/60 border border-cream-border/60">
+                        <span id="labelMainPayment" class="block text-[11px] text-cream-muted">每月還款金額</span>
+                        <span id="resMainPayment" class="text-base sm:text-lg font-bold text-cream-primary">NT$ 20,740</span>
+                    </div>
+
+                    <div id="boxEndPayment" class="p-3 rounded-xl bg-cream-bg/60 border border-cream-border/60 hidden">
+                        <span class="block text-[11px] text-cream-muted">末期每月金額</span>
+                        <span id="resEndPayment" class="text-base sm:text-lg font-bold text-cream-text">NT$ 14,615</span>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-cream-bg/60 border border-cream-border/60">
+                        <span class="block text-[11px] text-cream-muted">總支付利息</span>
+                        <span id="resTotalInterest" class="text-base sm:text-lg font-bold text-cream-text">NT$ 2,216,400</span>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-cream-bg/60 border border-cream-border/60">
+                        <span class="block text-[11px] text-cream-muted">本息總支出</span>
+                        <span id="resTotalPayment" class="text-base sm:text-lg font-bold text-cream-text">NT$ 7,466,400</span>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-cream-bg/60 border border-cream-border/60">
+                        <span class="block text-[11px] text-cream-muted">預計還款期數</span>
+                        <span id="resTotalPeriods" class="text-base sm:text-lg font-bold text-cream-text">360 期</span>
+                    </div>
+                </div>
+
+                <!-- 結構圖 (SVG Canvas) -->
+                <div class="flex flex-col items-center justify-center p-2">
+                    <div class="relative w-40 h-40">
+                        <svg id="pieChartSvg" class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                            <path class="text-cream-chart2" stroke-width="6" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="pieChartInterestPath" class="text-cream-primary transition-all duration-500" stroke-dasharray="30, 100" stroke-width="6" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
+                            <span class="text-[10px] text-cream-muted">總支出</span>
+                            <span id="pieCenterTotal" class="text-xs font-bold text-cream-text truncate w-full px-1">747萬</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 mt-3 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-3 rounded-full bg-cream-chart2 inline-block"></span>
+                            <span class="text-cream-muted">本金 <strong id="pctPrincipal" class="text-cream-text">70%</strong></span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-3 rounded-full bg-cream-primary inline-block"></span>
+                            <span class="text-cream-muted">利息 <strong id="pctInterest" class="text-cream-text">30%</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 3. 提前還款試算 -->
+        <section class="bg-cream-card rounded-2xl p-5 sm:p-6 card-shadow border border-cream-border">
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-cream-border">
+                <h2 class="text-lg font-bold text-cream-text">中途提前還款試算</h2>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="enableEarlyPay" class="sr-only peer">
+                    <div class="w-11 h-6 bg-cream-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cream-primary"></div>
+                </label>
+            </div>
+
+            <div id="earlyPayContainer" class="space-y-4 hidden">
+                <p class="text-xs text-cream-muted">可在特定期數額外償還本金，計算節省之利息或縮短之年限。</p>
+
+                <!-- 提前還款事件清單 -->
+                <div id="earlyPayEventsList" class="space-y-3">
+                    <!-- Dynamic Events -->
+                </div>
+
+                <button type="button" id="btnAddEarlyPay" class="w-full py-2.5 px-4 rounded-xl border border-dashed border-cream-primary text-cream-primary font-medium text-xs hover:bg-cream-primary/5 transition-colors">
+                    + 新增提前還款紀錄
+                </button>
+
+                <!-- 比較結果面板 -->
+                <div class="p-4 rounded-xl bg-cream-bg/80 border border-cream-border mt-4 space-y-3">
+                    <h3 class="text-xs font-bold text-cream-text uppercase tracking-wider">提前還款前後比較</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div>
+                            <span class="block text-cream-muted text-[11px]">原總利息</span>
+                            <span id="cmpOrigInterest" class="font-semibold text-cream-text">NT$ 0</span>
+                        </div>
+                        <div>
+                            <span class="block text-cream-muted text-[11px]">試算後總利息</span>
+                            <span id="cmpNewInterest" class="font-semibold text-cream-text">NT$ 0</span>
+                        </div>
+                        <div>
+                            <span class="block text-cream-primary text-[11px] font-bold">節省利息金額</span>
+                            <span id="cmpSavedInterest" class="font-bold text-cream-primary text-sm">NT$ 0</span>
+                        </div>
+                        <div>
+                            <span class="block text-cream-muted text-[11px]">提前結清時間</span>
+                            <span id="cmpSavedTime" class="font-semibold text-cream-text">無變化</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-[11px] text-cream-muted leading-relaxed">
+                    本試算以固定利率與指定的提前還款條件進行估算，未納入銀行個別的提前清償限制、違約金及手續費。實際結果請以貸款契約及銀行試算為準。
+                </p>
+            </div>
+        </section>
+
+        <!-- 4. 還款明細表 -->
+        <section class="bg-cream-card rounded-2xl p-5 sm:p-6 card-shadow border border-cream-border">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 pb-2 border-b border-cream-border">
+                <h2 class="text-lg font-bold text-cream-text">逐期還款明細表</h2>
+                
+                <!-- 篩選控制項 -->
+                <div class="flex items-center gap-2 text-xs w-full sm:w-auto">
+                    <span class="text-cream-muted shrink-0">顯示期數：</span>
+                    <select id="scheduleFilter" class="py-1.5 px-2 rounded-lg border border-cream-border bg-white text-cream-text outline-none text-xs w-full sm:w-auto">
+                        <option value="all">全部期數</option>
+                        <option value="1-12">第 1 - 12 期 (第1年)</option>
+                        <option value="1-60">第 1 - 60 期 (前5年)</option>
+                        <option value="custom">自訂範圍</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 自訂範圍輸入 (預設隱藏) -->
+            <div id="customRangeBox" class="hidden flex items-center gap-2 mb-3 text-xs">
+                <span>第</span>
+                <input type="number" id="customStart" min="1" value="1" class="w-16 p-1 border border-cream-border rounded text-center">
+                <span>至</span>
+                <input type="number" id="customEnd" min="1" value="360" class="w-16 p-1 border border-cream-border rounded text-center">
+                <span>期</span>
+                <button id="btnApplyCustomRange" class="px-2.5 py-1 bg-cream-primary text-white rounded font-medium">套用</button>
+            </div>
+
+            <!-- 表格容器 -->
+            <div class="overflow-x-auto custom-scrollbar rounded-xl border border-cream-border">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-cream-bg text-cream-muted border-b border-cream-border font-medium">
+                            <th class="py-3 px-3">期數</th>
+                            <th class="py-3 px-3 text-right">償還本金</th>
+                            <th class="py-3 px-3 text-right">支付利息</th>
+                            <th id="colExtraPay" class="py-3 px-3 text-right hidden">提前還款</th>
+                            <th class="py-3 px-3 text-right">當期應繳合計</th>
+                            <th class="py-3 px-3 text-right">剩餘貸款本金</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleTableBody" class="divide-y divide-cream-border/60 text-cream-text">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-3 text-right text-[11px] text-cream-muted">
+                顯示共 <span id="displayedCount">0</span> 期紀錄
+            </div>
+        </section>
+
+        <!-- 5. PWA 與部署輔助 -->
+        <section class="bg-cream-card/60 rounded-2xl p-4 card-shadow border border-cream-border/60 text-xs text-cream-muted space-y-2">
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-cream-text">PWA 離線安裝說明</span>
+                <button id="btnExportPWA" class="text-cream-primary underline font-medium">下載 Manifest & Service Worker</button>
+            </div>
+            <p class="leading-relaxed">
+                如需在 iPhone 上離線使用：請透過 Safari 開啟本頁面，點擊下方選單的「分享」圖示，然後選擇「加入主畫面」。首次在線成功開啟後即可取得快取離線運作。
+            </p>
+        </section>
+
+    </main>
+
+    <!-- UI Alert Standard Modal -->
+    <div id="appModal" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-cream-card rounded-2xl p-5 max-w-sm w-full card-shadow border border-cream-border space-y-4">
+            <h3 id="modalTitle" class="font-bold text-cream-text text-base">提示</h3>
+            <p id="modalMsg" class="text-xs text-cream-muted leading-relaxed"></p>
+            <div class="flex justify-end gap-2">
+                <button id="modalCancel" class="px-3 py-1.5 rounded-lg border border-cream-border text-xs text-cream-muted hidden">取消</button>
+                <button id="modalConfirm" class="px-4 py-1.5 rounded-lg bg-cream-primary text-white text-xs font-medium">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Engine JavaScript -->
+    <script>
+        /**
+         * 房貸計算器邏輯核心 (Mortgage Calculator Engine)
+         */
+
+        // 預設資料狀態
+        const DEFAULT_STATE = {
+            totalPrice: 7500000,
+            downPaymentRatio: 30,
+            interestRate: 2.5,
+            loanTermYears: 30,
+            gracePeriodYears: 0,
+            repaymentType: 'equalPayment', // 'equalPayment' | 'equalPrincipal'
+            enableEarlyPay: false,
+            earlyPayEvents: [], // Array of { id, period, amount, type: 'lowerPayment' | 'shortenTerm' }
+            filter: '1-12',
+            customStart: 1,
+            customEnd: 360
+        };
+
+        let state = { ...DEFAULT_STATE };
+
+        // DOM 元素引用
+        const $ = (id) => document.getElementById(id);
+
+        // 格式化數字千分位
+        function formatCurrency(val) {
+            const num = Math.round(val);
+            return 'NT$ ' + num.toLocaleString('zh-TW');
+        }
+
+        function parseCurrency(str) {
+            return parseFloat(str.replace(/[^\d.]/g, '')) || 0;
+        }
+
+        // 初始化與事件綁定
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            bindEvents();
+            registerServiceWorker();
+            calculateAndRender();
+        });
+
+        // 讀取/儲存 LocalStorage
+        function loadState() {
+            try {
+                const saved = localStorage.getItem('mortgage_calc_state');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    state = { ...DEFAULT_STATE, ...parsed };
+                }
+            } catch (e) {
+                console.error('Failed to load local state', e);
+                state = { ...DEFAULT_STATE };
+            }
+            syncStateToUI();
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('mortgage_calc_state', JSON.stringify(state));
+            } catch (e) {
+                console.error('Failed to save state', e);
+            }
+        }
+
+        // 同步 State 到介面
+        function syncStateToUI() {
+            $('totalPrice').value = state.totalPrice.toLocaleString('zh-TW');
+            $('downPaymentSlider').value = state.downPaymentRatio;
+            $('downPaymentRatio').value = state.downPaymentRatio;
+            $('interestRate').value = state.interestRate;
+            $('loanTermYears').value = state.loanTermYears;
+            $('gracePeriodYears').value = state.gracePeriodYears;
+            $('enableEarlyPay').checked = state.enableEarlyPay;
+            
+            updateRepaymentTypeButtons();
+            
+            $('scheduleFilter').value = state.filter;
+            $('customStart').value = state.customStart;
+            $('customEnd').value = state.customEnd;
+            if (state.filter === 'custom') {
+                $('customRangeBox').classList.remove('hidden');
+            } else {
+                $('customRangeBox').classList.add('hidden');
+            }
+
+            if (state.enableEarlyPay) {
+                $('earlyPayContainer').classList.remove('hidden');
+            } else {
+                $('earlyPayContainer').classList.add('hidden');
+            }
+
+            renderEarlyPayEvents();
+        }
+
+        function updateRepaymentTypeButtons() {
+            if (state.repaymentType === 'equalPayment') {
+                $('typeEqualPayment').className = 'py-2 px-2 text-xs font-medium rounded-lg transition-all bg-cream-primary text-white shadow-sm';
+                $('typeEqualPrincipal').className = 'py-2 px-2 text-xs font-medium rounded-lg transition-all text-cream-muted hover:text-cream-text';
+            } else {
+                $('typeEqualPrincipal').className = 'py-2 px-2 text-xs font-medium rounded-lg transition-all bg-cream-primary text-white shadow-sm';
+                $('typeEqualPayment').className = 'py-2 px-2 text-xs font-medium rounded-lg transition-all text-cream-muted hover:text-cream-text';
+            }
+        }
+
+        // 事件監聽器
+        function bindEvents() {
+            // 房屋總價
+            $('totalPrice').addEventListener('input', (e) => {
+                const val = parseCurrency(e.target.value);
+                state.totalPrice = val;
+                saveState();
+                calculateAndRender();
+            });
+            $('totalPrice').addEventListener('blur', (e) => {
+                e.target.value = state.totalPrice.toLocaleString('zh-TW');
+            });
+
+            // 自備款滑桿與輸入框
+            $('downPaymentSlider').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10) || 0;
+                state.downPaymentRatio = val;
+                $('downPaymentRatio').value = val;
+                saveState();
+                calculateAndRender();
+            });
+            $('downPaymentRatio').addEventListener('input', (e) => {
+                let val = parseInt(e.target.value, 10);
+                if (isNaN(val)) val = 0;
+                if (val > 100) val = 100;
+                if (val < 0) val = 0;
+                state.downPaymentRatio = val;
+                $('downPaymentSlider').value = val;
+                saveState();
+                calculateAndRender();
+            });
+
+            // 年利率
+            $('interestRate').addEventListener('input', (e) => {
+                let val = parseFloat(e.target.value);
+                if (isNaN(val) || val < 0) val = 0;
+                state.interestRate = val;
+                saveState();
+                calculateAndRender();
+            });
+
+            // 貸款年限
+            $('loanTermYears').addEventListener('change', (e) => {
+                state.loanTermYears = parseInt(e.target.value, 10);
+                // 檢查寬限期不得超過年限
+                if (state.gracePeriodYears > state.loanTermYears) {
+                    state.gracePeriodYears = state.loanTermYears;
+                    $('gracePeriodYears').value = state.gracePeriodYears;
+                }
+                saveState();
+                calculateAndRender();
+            });
+
+            // 寬限期
+            $('gracePeriodYears').addEventListener('change', (e) => {
+                let grace = parseInt(e.target.value, 10);
+                if (grace > state.loanTermYears) {
+                    showAlert('寬限期不可超過貸款年限');
+                    grace = state.loanTermYears;
+                    e.target.value = grace;
+                }
+                state.gracePeriodYears = grace;
+                saveState();
+                calculateAndRender();
+            });
+
+            // 還款方式
+            $('typeEqualPayment').addEventListener('click', () => {
+                state.repaymentType = 'equalPayment';
+                updateRepaymentTypeButtons();
+                saveState();
+                calculateAndRender();
+            });
+            $('typeEqualPrincipal').addEventListener('click', () => {
+                state.repaymentType = 'equalPrincipal';
+                updateRepaymentTypeButtons();
+                saveState();
+                calculateAndRender();
+            });
+
+            // 提前還款開關
+            $('enableEarlyPay').addEventListener('change', (e) => {
+                state.enableEarlyPay = e.target.checked;
+                if (state.enableEarlyPay) {
+                    $('earlyPayContainer').classList.remove('hidden');
+                    if (state.earlyPayEvents.length === 0) {
+                        addEarlyPayEvent();
+                    }
+                } else {
+                    $('earlyPayContainer').classList.add('hidden');
+                }
+                saveState();
+                calculateAndRender();
+            });
+
+            // 新增提前還款事件
+            $('btnAddEarlyPay').addEventListener('click', () => {
+                addEarlyPayEvent();
+            });
+
+            // 恢復預設值
+            $('btnReset').addEventListener('click', () => {
+                showConfirm('確定要恢復為預設試算條件嗎？', () => {
+                    state = { ...DEFAULT_STATE, earlyPayEvents: [] };
+                    syncStateToUI();
+                    saveState();
+                    calculateAndRender();
+                });
+            });
+
+            // 明細表篩選
+            $('scheduleFilter').addEventListener('change', (e) => {
+                state.filter = e.target.value;
+                if (state.filter === 'custom') {
+                    $('customRangeBox').classList.remove('hidden');
+                } else {
+                    $('customRangeBox').classList.add('hidden');
+                }
+                saveState();
+                renderScheduleTable();
+            });
+
+            $('btnApplyCustomRange').addEventListener('click', () => {
+                state.customStart = parseInt($('customStart').value, 10) || 1;
+                state.customEnd = parseInt($('customEnd').value, 10) || 360;
+                saveState();
+                renderScheduleTable();
+            });
+
+            // PWA Download Helper
+            $('btnExportPWA').addEventListener('click', exportPWAFiles);
+        }
+
+        // 管理提前還款事件 UI
+        function addEarlyPayEvent() {
+            const newId = Date.now();
+            const defaultPeriod = 36; // 預設第3年(36期)
+            const defaultAmount = 500000;
+            state.earlyPayEvents.push({
+                id: newId,
+                period: defaultPeriod,
+                amount: defaultAmount,
+                type: 'lowerPayment'
+            });
+            saveState();
+            renderEarlyPayEvents();
+            calculateAndRender();
+        }
+
+        function removeEarlyPayEvent(id) {
+            state.earlyPayEvents = state.earlyPayEvents.filter(e => e.id !== id);
+            saveState();
+            renderEarlyPayEvents();
+            calculateAndRender();
+        }
+
+        function renderEarlyPayEvents() {
+            const listEl = $('earlyPayEventsList');
+            listEl.innerHTML = '';
+
+            state.earlyPayEvents.forEach((evt, idx) => {
+                const item = document.createElement('div');
+                item.className = 'p-3 bg-white rounded-xl border border-cream-border space-y-2 text-xs';
+                item.innerHTML = `
+                    <div class="flex justify-between items-center font-medium text-cream-text">
+                        <span>提前還款事件 #${idx + 1}</span>
+                        <button type="button" class="text-xs text-red-400 hover:text-red-600 font-normal" onclick="removeEarlyPayEvent(${evt.id})">刪除</button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[11px] text-cream-muted mb-0.5">還款期數 (期)</label>
+                            <input type="number" min="1" max="${state.loanTermYears * 12}" value="${evt.period}" class="w-full p-1.5 border border-cream-border rounded bg-transparent" onchange="updateEarlyPayEvt(${evt.id}, 'period', this.value)">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-cream-muted mb-0.5">償還金額 (NT$)</label>
+                            <input type="number" min="10000" step="10000" value="${evt.amount}" class="w-full p-1.5 border border-cream-border rounded bg-transparent" onchange="updateEarlyPayEvt(${evt.id}, 'amount', this.value)">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-cream-muted mb-0.5">處理方式</label>
+                            <select class="w-full p-1.5 border border-cream-border rounded bg-transparent" onchange="updateEarlyPayEvt(${evt.id}, 'type', this.value)">
+                                <option value="lowerPayment" ${evt.type === 'lowerPayment' ? 'selected' : ''}>降低每月還款金額</option>
+                                <option value="shortenTerm" ${evt.type === 'shortenTerm' ? 'selected' : ''}>縮短貸款年限</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        window.updateEarlyPayEvt = function(id, key, val) {
+            const evt = state.earlyPayEvents.find(e => e.id === id);
+            if (!evt) return;
+            if (key === 'period') evt.period = parseInt(val, 10) || 1;
+            if (key === 'amount') evt.amount = parseFloat(val) || 0;
+            if (key === 'type') evt.type = val;
+            saveState();
+            calculateAndRender();
+        };
+
+        window.removeEarlyPayEvent = removeEarlyPayEvent;
+
+        // 全域計算及渲染快照
+        let lastScheduleResult = null;
+
+        function calculateAndRender() {
+            // 1. 基礎計算
+            const downPayment = Math.round(state.totalPrice * (state.downPaymentRatio / 100));
+            const loanPrincipal = Math.max(0, state.totalPrice - downPayment);
+
+            $('downPaymentAmountDisplay').innerText = formatCurrency(downPayment);
+            $('loanAmountDisplay').innerText = `貸款 ${formatCurrency(loanPrincipal)}`;
+            $('resLoanPrincipal').innerText = formatCurrency(loanPrincipal);
+
+            // 算原始未提前還款方案
+            const origSchedule = generateSchedule(loanPrincipal, state.interestRate, state.loanTermYears, state.gracePeriodYears, state.repaymentType, []);
+
+            // 算提前還款方案 (若啟用)
+            let finalSchedule = origSchedule;
+            if (state.enableEarlyPay && state.earlyPayEvents.length > 0) {
+                finalSchedule = generateSchedule(loanPrincipal, state.interestRate, state.loanTermYears, state.gracePeriodYears, state.repaymentType, state.earlyPayEvents);
+            }
+
+            lastScheduleResult = {
+                orig: origSchedule,
+                final: finalSchedule
+            };
+
+            // 2. 顯示摘要結果
+            renderSummary(origSchedule, finalSchedule, loanPrincipal);
+
+            // 3. 渲染圖表
+            renderPieChart(loanPrincipal, finalSchedule.totalInterest);
+
+            // 4. 渲染表格
+            renderScheduleTable();
+        }
+
+        /**
+         * 核心計算引擎 (Financial Calculation Algorithm)
+         */
+        function generateSchedule(principal, annualRate, termYears, graceYears, type, earlyEvents) {
+            const totalMonths = termYears * 12;
+            const graceMonths = graceYears * 12;
+            const monthlyRate = (annualRate / 100) / 12;
+
+            let remainingPrincipal = principal;
+            const rows = [];
+            let totalInterest = 0;
+            let totalExtraPaid = 0;
+
+            if (principal <= 0 || totalMonths <= 0) {
+                return { rows: [], totalPrincipal: 0, totalInterest: 0, totalPayment: 0, endPeriod: 0 };
+            }
+
+            // 深拷貝提前還款事件並按期數排序
+            const sortedEvents = [...earlyEvents].map(e => ({ ...e })).sort((a, b) => a.period - b.period);
+
+            let currentRemMonths = totalMonths;
+            let inGrace = graceMonths > 0;
+
+            // 計算初始固定月付金 (本息平均)
+            let currentPMT = 0;
+            if (type === 'equalPayment' && (totalMonths - graceMonths) > 0) {
+                currentPMT = calcPMT(principal, monthlyRate, totalMonths - graceMonths);
+            }
+
+            for (let m = 1; m <= totalMonths; m++) {
+                if (remainingPrincipal <= 0.001) break; // 已提前清償完畢
+
+                const isGracePeriod = m <= graceMonths;
+                let interest = remainingPrincipal * monthlyRate;
+                let principalPaid = 0;
+                let extraPay = 0;
+
+                // 當期正常還款計算
+                if (isGracePeriod) {
+                    principalPaid = 0;
+                } else {
+                    const remPayMonths = totalMonths - Math.max(graceMonths, m - 1);
+                    if (type === 'equalPayment') {
+                        principalPaid = currentPMT - interest;
+                        if (principalPaid > remainingPrincipal || m === totalMonths) {
+                            principalPaid = remainingPrincipal;
+                        }
+                    } else {
+                        // 本金平均攤還
+                        principalPaid = remainingPrincipal / remPayMonths;
+                        if (m === totalMonths || principalPaid > remainingPrincipal) {
+                            principalPaid = remainingPrincipal;
+                        }
+                    }
+                }
+
+                if (principalPaid < 0) principalPaid = 0;
+
+                // 扣除當期正常本金
+                remainingPrincipal -= principalPaid;
+                if (remainingPrincipal < 0) remainingPrincipal = 0;
+
+                // 檢查當期是否有額外提前還款事件
+                const evtsThisMonth = sortedEvents.filter(e => e.period === m);
+                for (let evt of evtsThisMonth) {
+                    if (remainingPrincipal > 0) {
+                        let actualExtra = Math.min(evt.amount, remainingPrincipal);
+                        remainingPrincipal -= actualExtra;
+                        extraPay += actualExtra;
+                        totalExtraPaid += actualExtra;
+
+                        // 提前還款後重算未來每期攤還條件
+                        const futureRemMonths = totalMonths - m;
+                        const futureGraceMonths = Math.max(0, graceMonths - m);
+                        const futurePayMonths = futureRemMonths - futureGraceMonths;
+
+                        if (remainingPrincipal > 0 && futurePayMonths > 0) {
+                            if (evt.type === 'lowerPayment') {
+                                // 降低月付金，維持剩餘期限
+                                if (type === 'equalPayment') {
+                                    currentPMT = calcPMT(remainingPrincipal, monthlyRate, futurePayMonths);
+                                }
+                            } else if (evt.type === 'shortenTerm') {
+                                // 縮短年限，維持原本月付金額 (本息平均模式保持 currentPMT 變動不急劇)
+                                if (type === 'equalPayment') {
+                                    // 維持 currentPMT, remainingPrincipal 自動加速歸零
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 尾數校正 (最後一期歸零)
+                if (remainingPrincipal < 1e-4) {
+                    remainingPrincipal = 0;
+                }
+
+                const totalMonthPaid = principalPaid + interest + extraPay;
+                totalInterest += interest;
+
+                rows.push({
+                    period: m,
+                    principalPaid: Math.round(principalPaid),
+                    interestPaid: Math.round(interest),
+                    extraPaid: Math.round(extraPay),
+                    totalPaid: Math.round(totalMonthPaid),
+                    remainingPrincipal: Math.round(remainingPrincipal)
+                });
+            }
+
+            const totalPaidPrincipal = principal - remainingPrincipal;
+
+            return {
+                rows,
+                totalPrincipal: Math.round(totalPaidPrincipal),
+                totalInterest: Math.round(totalInterest),
+                totalPayment: Math.round(totalPaidPrincipal + totalInterest),
+                endPeriod: rows.length
+            };
+        }
+
+        // 本息攤還月付金公式
+        function calcPMT(pv, rate, nper) {
+            if (rate === 0) return pv / nper;
+            return pv * (rate * Math.pow(1 + rate, nper)) / (Math.pow(1 + rate, nper) - 1);
+        }
+
+        // 渲染摘要
+        function renderSummary(orig, final, principal) {
+            const hasGrace = state.gracePeriodYears > 0;
+            const isEqualPrincipal = state.repaymentType === 'equalPrincipal';
+
+            if (hasGrace) {
+                $('boxGracePayment').classList.remove('hidden');
+                $('resGracePayment').innerText = formatCurrency(final.rows[0] ? final.rows[0].interestPaid : 0);
+            } else {
+                $('boxGracePayment').classList.add('hidden');
+            }
+
+            if (isEqualPrincipal) {
+                $('labelMainPayment').innerText = '首期每月金額';
+                $('resMainPayment').innerText = formatCurrency(final.rows[0] ? final.rows[0].totalPaid : 0);
+                
+                $('boxEndPayment').classList.remove('hidden');
+                $('resEndPayment').innerText = formatCurrency(final.rows[final.rows.length - 1] ? final.rows[final.rows.length - 1].totalPaid : 0);
+            } else {
+                $('labelMainPayment').innerText = hasGrace ? '寬限期後月付金' : '每月還款金額';
+                const mainRow = final.rows[hasGrace ? state.gracePeriodYears * 12 : 0];
+                $('resMainPayment').innerText = formatCurrency(mainRow ? mainRow.totalPaid : 0);
+                $('boxEndPayment').classList.add('hidden');
+            }
+
+            $('resTotalInterest').innerText = formatCurrency(final.totalInterest);
+            $('resTotalPayment').innerText = formatCurrency(final.totalPayment);
+            $('resTotalPeriods').innerText = `${final.endPeriod} 期`;
+
+            // 提前還款比較欄位
+            if (state.enableEarlyPay) {
+                $('cmpOrigInterest').innerText = formatCurrency(orig.totalInterest);
+                $('cmpNewInterest').innerText = formatCurrency(final.totalInterest);
+
+                const saved = orig.totalInterest - final.totalInterest;
+                $('cmpSavedInterest').innerText = formatCurrency(saved);
+
+                const diffPeriod = orig.endPeriod - final.endPeriod;
+                if (diffPeriod > 0) {
+                    const yrs = Math.floor(diffPeriod / 12);
+                    const mths = diffPeriod % 12;
+                    let text = '縮短 ';
+                    if (yrs > 0) text += `${yrs} 年 `;
+                    if (mths > 0) text += `${mths} 個月`;
+                    $('cmpSavedTime').innerText = text;
+                } else {
+                    $('cmpSavedTime').innerText = '無縮短年限';
+                }
+            }
+        }
+
+        // 繪製 SVG 圓餅圖
+        function renderPieChart(principal, interest) {
+            const total = principal + interest;
+            if (total <= 0) return;
+
+            const principalRatio = principal / total;
+            const interestRatio = interest / total;
+
+            const pctP = Math.round(principalRatio * 100);
+            const pctI = 100 - pctP;
+
+            $('pctPrincipal').innerText = `${pctP}%`;
+            $('pctInterest').innerText = `${pctI}%`;
+
+            // SVG strokeDasharray 轉換
+            const strokeDash = `${pctI}, 100`;
+            $('pieChartInterestPath').setAttribute('stroke-dasharray', strokeDash);
+
+            // 中間文字
+            const totalText = (total / 10000).toFixed(0) + '萬';
+            $('pieCenterTotal').innerText = `${formatCurrency(total)}`;
+        }
+
+        // 渲染明細表格
+        function renderScheduleTable() {
+            if (!lastScheduleResult) return;
+
+            const rows = lastScheduleResult.final.rows;
+            const tableBody = $('scheduleTableBody');
+            tableBody.innerHTML = '';
+
+            const showExtra = state.enableEarlyPay && state.earlyPayEvents.length > 0;
+            if (showExtra) {
+                $('colExtraPay').classList.remove('hidden');
+            } else {
+                $('colExtraPay').classList.add('hidden');
+            }
+
+            // 篩選過濾
+            let start = 1;
+            let end = rows.length;
+
+            if (state.filter === '1-12') {
+                end = Math.min(12, rows.length);
+            } else if (state.filter === '1-60') {
+                end = Math.min(60, rows.length);
+            } else if (state.filter === 'custom') {
+                start = Math.max(1, state.customStart);
+                end = Math.min(rows.length, state.customEnd);
+            }
+
+            const filteredRows = rows.filter(r => r.period >= start && r.period <= end);
+            $('displayedCount').innerText = filteredRows.length;
+
+            const fragment = document.createDocumentFragment();
+
+            filteredRows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-cream-bg/40 transition-colors';
+
+                let extraTd = showExtra ? `<td class="py-2.5 px-3 text-right font-medium text-cream-primary">${r.extraPaid > 0 ? formatCurrency(r.extraPaid) : '-'}</td>` : '';
+
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 font-medium text-cream-muted">第 ${r.period} 期</td>
+                    <td class="py-2.5 px-3 text-right">${formatCurrency(r.principalPaid)}</td>
+                    <td class="py-2.5 px-3 text-right text-cream-muted">${formatCurrency(r.interestPaid)}</td>
+                    ${extraTd}
+                    <td class="py-2.5 px-3 text-right font-semibold">${formatCurrency(r.totalPaid)}</td>
+                    <td class="py-2.5 px-3 text-right text-cream-muted">${formatCurrency(r.remainingPrincipal)}</td>
+                `;
+                fragment.appendChild(tr);
+            });
+
+            tableBody.appendChild(fragment);
+        }
+
+        // Service Worker 註冊與離線機制
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => console.log('SW Registered:', reg.scope))
+                        .catch(err => console.warn('SW Registration failed:', err));
+                });
+            }
+        }
+
+        // PWA 檔案導出工具 (為無伺服器直接部署環境點擊產生需求之 SW 及 Manifest)
+        function exportPWAFiles() {
+            const manifestContent = {
+                name: "房貸計算器",
+                short_name: "房貸計算器",
+                start_url: "./index.html",
+                display: "standalone",
+                background_color: "#F7F3ED",
+                theme_color: "#F7F3ED",
+                icons: [
+                    { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+                    { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" }
+                ]
+            };
+
+            const swContent = `
+const CACHE_NAME = 'mortgage-calc-v2';
+const ASSETS = [
+    './',
+    './index.html',
+    './manifest.webmanifest',
+    'https://cdn.tailwindcss.com'
+];
+
+self.addEventListener('install', (e) => {
+    e.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    );
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
+    e.waitUntil(
+        caches.keys().then((keys) => {
+            return Promise.all(
+                keys.map((key) => {
+                    if (key !== CACHE_NAME) return caches.delete(key);
+                })
+            );
+        })
+    );
+    self.clients.claim();
+});
+
+self.addEventListener('fetch', (e) => {
+    e.respondWith(
+        caches.match(e.request).then((res) => {
+            return res || fetch(e.request).catch(() => caches.match('./index.html'));
+        })
+    );
+});
+`;
+
+            downloadBlob('manifest.webmanifest', JSON.stringify(manifestContent, null, 2), 'application/json');
+            downloadBlob('sw.js', swContent, 'application/javascript');
+            showAlert('已發起 manifest.webmanifest 與 sw.js 之下載！您可以放置於同目錄下進行部署。');
+        }
+
+        function downloadBlob(filename, text, type) {
+            const blob = new Blob([text], { type: type });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+        }
+
+        // UI 彈窗控制
+        function showAlert(msg) {
+            $('modalTitle').innerText = '提示';
+            $('modalMsg').innerText = msg;
+            $('modalCancel').classList.add('hidden');
+            $('modalConfirm').onclick = closeModal;
+            
+            const modal = $('appModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function showConfirm(msg, onConfirm) {
+            $('modalTitle').innerText = '確認提示';
+            $('modalMsg').innerText = msg;
+            $('modalCancel').classList.remove('hidden');
+            
+            $('modalCancel').onclick = closeModal;
+            $('modalConfirm').onclick = () => {
+                closeModal();
+                if (onConfirm) onConfirm();
+            };
+
+            const modal = $('appModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function closeModal() {
+            const modal = $('appModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+        }
+    </script>
+</body>
+</html>
